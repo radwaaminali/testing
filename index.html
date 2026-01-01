@@ -7,19 +7,50 @@
     <title>FAANG Code Reviewer Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <script type="importmap">
+    <style>
+      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+      .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+      .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    </style>
+    <script type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
     "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "recharts": "https://esm.sh/recharts@^3.6.0"
+    "recharts": "https://esm.sh/recharts@^3.6.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
   }
 }
 </script>
-</head>
+  </head>
   <body class="bg-slate-50 text-slate-900 antialiased">
-    <div id="root"></div>
+    <div id="root">
+      <div class="h-screen w-screen flex flex-col items-center justify-center space-y-4">
+        <div class="w-12 h-12 border-4 border-slate-200 border-t-indigo-600 rounded-full animate-spin"></div>
+        <p class="text-slate-500 font-bold animate-pulse">Initializing FAANG Engine...</p>
+      </div>
+    </div>
+    
+    <script type="module">
+      window.onerror = function(msg, url, line) {
+        const root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = `
+            <div class="p-8 text-center space-y-4">
+              <i class="fa-solid fa-triangle-exclamation text-rose-500 text-5xl"></i>
+              <h1 class="text-xl font-bold">Initialization Failed</h1>
+              <p class="text-slate-500 text-sm max-w-md mx-auto">${msg}</p>
+              <button onclick="location.reload()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Retry</button>
+            </div>
+          `;
+        }
+        return false;
+      };
+    </script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

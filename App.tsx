@@ -1,9 +1,9 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { LANGUAGES, CodeReviewResult, SupportedLanguage, ReviewCategory, ProjectFile, ProjectExplanation, ProjectDevelopmentResult, UILanguage, TRANSLATIONS } from './types';
-import { getCodeReview, applyFixes, explainProject, suggestDevelopment } from './services/geminiService';
-import { ReviewScoreCard } from './components/ReviewScoreCard';
-import { FindingItem } from './components/FindingItem';
+import { LANGUAGES, CodeReviewResult, SupportedLanguage, ReviewCategory, ProjectFile, ProjectExplanation, ProjectDevelopmentResult, UILanguage, TRANSLATIONS } from './types.ts';
+import { getCodeReview, applyFixes, explainProject, suggestDevelopment } from './services/geminiService.ts';
+import { ReviewScoreCard } from './components/ReviewScoreCard.tsx';
+import { FindingItem } from './components/FindingItem.tsx';
 
 const App: React.FC = () => {
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en');
@@ -25,7 +25,6 @@ const App: React.FC = () => {
   const folderInputRef = useRef<HTMLInputElement>(null);
   const t = TRANSLATIONS[uiLanguage];
 
-  // Set HTML direction based on language
   useEffect(() => {
     document.documentElement.dir = uiLanguage === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = uiLanguage;
@@ -155,29 +154,17 @@ const App: React.FC = () => {
           </div>
           
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <button 
-              onClick={toggleLanguage}
-              className="bg-slate-800 hover:bg-slate-700 p-1.5 px-3 rounded text-[10px] font-black border border-slate-700 transition-colors uppercase tracking-widest text-indigo-400"
-            >
+            <button onClick={toggleLanguage} className="bg-slate-800 hover:bg-slate-700 p-1.5 px-3 rounded text-[10px] font-black border border-slate-700 transition-colors uppercase tracking-widest text-indigo-400">
               {uiLanguage === 'en' ? 'العربية' : 'English'}
             </button>
-
-            <select
-              className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-sm text-slate-200 focus:outline-none"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}
-            >
-              {LANGUAGES.map(lang => (
-                <option key={lang.value} value={lang.value}>{lang.label}</option>
-              ))}
+            <select className="bg-slate-800 border border-slate-700 rounded-md px-3 py-1.5 text-sm text-slate-200 focus:outline-none" value={language} onChange={(e) => setLanguage(e.target.value as SupportedLanguage)}>
+              {LANGUAGES.map(lang => (<option key={lang.value} value={lang.value}>{lang.label}</option>))}
             </select>
-
             <button onClick={() => folderInputRef.current?.click()} className="bg-slate-800 hover:bg-slate-700 p-1.5 px-3 rounded text-xs font-bold flex items-center gap-2 border border-slate-700 transition-colors">
               <i className="fa-solid fa-folder-tree text-amber-400"></i>
               <span>{t.upload}</span>
             </button>
             <input type="file" ref={folderInputRef} onChange={handleFileUpload} className="hidden" {...({ webkitdirectory: "", directory: "" } as any)} />
-
             <div className="flex gap-2">
               <button onClick={handleExplain} disabled={loading || explaining || suggesting || (!code.trim() && uploadedFiles.length === 0)} className="bg-slate-100 hover:bg-white text-slate-800 border border-slate-200 px-4 py-1.5 rounded-md text-sm font-bold transition-all flex items-center gap-2">
                 {explaining ? <i className="fa-solid fa-circle-notch fa-spin"></i> : <i className="fa-solid fa-lightbulb text-amber-500"></i>}
@@ -197,19 +184,15 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Editor Side */}
         <div className="flex flex-col gap-4">
           <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[500px]">
             <div className="bg-slate-50 border-b border-slate-200 px-4 py-2 flex items-center justify-between">
               <div className="flex gap-2">
                 <button onClick={() => setViewMode('original')} className={`text-[10px] font-black uppercase px-3 py-1 rounded transition-colors ${viewMode === 'original' ? 'bg-indigo-600 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{t.original}</button>
-                {fixedContent && (
-                  <button onClick={() => setViewMode('fixed')} className={`text-[10px] font-black uppercase px-3 py-1 rounded transition-colors ${viewMode === 'fixed' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{t.fixed}</button>
-                )}
+                {fixedContent && (<button onClick={() => setViewMode('fixed')} className={`text-[10px] font-black uppercase px-3 py-1 rounded transition-colors ${viewMode === 'fixed' ? 'bg-emerald-600 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{t.fixed}</button>)}
               </div>
               <button onClick={clearAll} className="text-[10px] font-bold text-slate-400 hover:text-rose-500 uppercase transition-colors">{t.reset}</button>
             </div>
-            
             <div className={`flex-1 bg-slate-900 overflow-y-auto custom-scrollbar font-mono text-sm text-slate-300 ${uiLanguage === 'ar' ? 'text-left' : ''}`} dir="ltr">
               {viewMode === 'original' ? (
                 uploadedFiles.length > 0 ? (
@@ -240,7 +223,6 @@ const App: React.FC = () => {
               )}
             </div>
           </div>
-          
           {error && (
             <div className="bg-rose-50 border border-rose-200 p-4 rounded-lg flex items-start gap-3 text-rose-800 animate-in slide-in-from-top-2">
               <i className="fa-solid fa-circle-xmark mt-1"></i>
@@ -249,17 +231,13 @@ const App: React.FC = () => {
           )}
         </div>
 
-        {/* Results Side */}
         <div className="flex flex-col gap-6 overflow-y-auto max-h-[calc(100vh-160px)] pr-2 custom-scrollbar">
           {(loading || explaining || suggesting) && (
             <div className="h-full flex flex-col items-center justify-center p-12 space-y-4 bg-white rounded-xl border border-slate-200">
               <div className="w-12 h-12 border-4 border-slate-100 border-t-indigo-600 rounded-full animate-spin"></div>
-              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">
-                {t.analyzing}
-              </p>
+              <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{t.analyzing}</p>
             </div>
           )}
-
           {!result && !explanation && !development && !loading && !explaining && !suggesting && (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 p-12 bg-white rounded-xl border border-dashed border-slate-200">
               <i className="fa-solid fa-diagram-project text-4xl mb-4 text-indigo-100"></i>
@@ -267,10 +245,8 @@ const App: React.FC = () => {
               <p className="text-xs text-slate-400 mt-2 text-center max-w-xs">{t.readySub}</p>
             </div>
           )}
-
           {(result || explanation || development) && !loading && !explaining && !suggesting && (
             <div className="space-y-6 animate-in fade-in zoom-in-95">
-              {/* Result Tabs */}
               <div className="flex border-b border-slate-200 gap-6">
                 <button onClick={() => setRightTab('review')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'review' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.review}</button>
                 <button onClick={() => setRightTab('insight')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'insight' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.architecture}</button>
@@ -292,7 +268,6 @@ const App: React.FC = () => {
                     </div>
                     <p className="text-slate-300 text-xs italic leading-relaxed">"{result.executiveSummary}"</p>
                   </div>
-
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                     <ReviewScoreCard label="Security" score={result.categories.security.score} icon="fa-solid fa-lock" color="bg-rose-500" />
                     <ReviewScoreCard label="Bugs" score={result.categories.bugs.score} icon="fa-solid fa-bug" color="bg-orange-500" />
@@ -300,7 +275,6 @@ const App: React.FC = () => {
                     <ReviewScoreCard label="Quality" score={result.categories.quality.score} icon="fa-solid fa-gem" color="bg-emerald-500" />
                     <ReviewScoreCard label="Docs" score={result.categories.maintainability.score} icon="fa-solid fa-wrench" color="bg-sky-500" />
                   </div>
-
                   <div className="space-y-10">
                     {(Object.entries(result.categories) as [string, ReviewCategory][]).map(([key, cat]) => (
                       <div key={key} className="space-y-4">
@@ -325,45 +299,21 @@ const App: React.FC = () => {
                     <h2 className="text-3xl font-black mb-2">{explanation.title}</h2>
                     <p className="text-indigo-100 text-sm leading-relaxed max-w-lg">{explanation.briefSummary}</p>
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <i className="fa-solid fa-layer-group text-indigo-500"></i> {t.architecture}
-                      </h4>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-layer-group text-indigo-500"></i> {t.architecture}</h4>
                       <p className="text-sm text-slate-700 font-bold">{explanation.architecturePattern}</p>
                     </div>
                     <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                        <i className="fa-solid fa-microchip text-indigo-500"></i> {t.techStack}
-                      </h4>
+                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-microchip text-indigo-500"></i> {t.techStack}</h4>
                       <div className="flex flex-wrap gap-2">
-                        {explanation.techStack.map((tech, i) => (
-                          <span key={i} className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">{tech}</span>
-                        ))}
+                        {explanation.techStack.map((tech, i) => (<span key={i} className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">{tech}</span>))}
                       </div>
                     </div>
                   </div>
-
                   <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                      <i className="fa-solid fa-code-branch text-indigo-500"></i> {t.logicFlow}
-                    </h4>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-code-branch text-indigo-500"></i> {t.logicFlow}</h4>
                     <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100 italic">{explanation.coreLogicFlow}</p>
-                  </div>
-
-                  <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                      <i className="fa-solid fa-cubes text-indigo-500"></i> {t.keyModules}
-                    </h4>
-                    <div className="space-y-3">
-                      {explanation.keyModules.map((mod, i) => (
-                        <div key={i} className={`flex gap-4 p-3 rounded-lg hover:bg-slate-50 transition-colors border-l-2 border-indigo-200 ${uiLanguage === 'ar' ? 'border-l-0 border-r-2 text-right' : ''}`}>
-                          <div className="font-mono text-xs font-bold text-slate-800 shrink-0 min-w-[120px]">{mod.name}</div>
-                          <div className="text-xs text-slate-500">{mod.responsibility}</div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
                 </div>
               )}
@@ -374,7 +324,6 @@ const App: React.FC = () => {
                     <h2 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">{t.vision}</h2>
                     <p className="text-lg font-bold leading-tight">{development.visionStatement}</p>
                   </div>
-
                   <div className="space-y-4">
                     {development.suggestions.map((suggestion, i) => (
                       <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
@@ -385,15 +334,11 @@ const App: React.FC = () => {
                               suggestion.category === 'Scalability' ? 'bg-amber-100 text-amber-700' :
                               suggestion.category === 'UX' ? 'bg-emerald-100 text-emerald-700' :
                               suggestion.category === 'Architecture' ? 'bg-sky-100 text-sky-700' : 'bg-slate-200 text-slate-700'
-                            }`}>
-                              {suggestion.category}
-                            </span>
+                            }`}>{suggestion.category}</span>
                             <h3 className="text-sm font-black text-slate-800">{suggestion.title}</h3>
                           </div>
                           <div className={`flex gap-2 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
-                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
-                               suggestion.impact === 'High' ? 'border-rose-200 text-rose-600 bg-rose-50' : 'border-slate-200 text-slate-500'
-                             }`}>{t.impact}: {suggestion.impact}</span>
+                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${suggestion.impact === 'High' ? 'border-rose-200 text-rose-600 bg-rose-50' : 'border-slate-200 text-slate-500'}`}>{t.impact}: {suggestion.impact}</span>
                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 bg-white">{t.dev}: {suggestion.complexity}</span>
                           </div>
                         </div>
@@ -421,7 +366,6 @@ const App: React.FC = () => {
           )}
         </div>
       </main>
-      
       <footer className="bg-white border-t border-slate-200 py-3 text-center">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.footer}</p>
       </footer>
