@@ -1,11 +1,127 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { CodeReviewResult, SupportedLanguage, ProjectFile, ProjectExplanation, ProjectDevelopmentResult, UILanguage } from "../types";
+import { CodeReviewResult, SupportedLanguage, ProjectFile, ProjectExplanation, ProjectDevelopmentResult, UILanguage, SecurityAuditResult, PerformanceOptimizationResult } from "../types";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const getLanguageInstruction = (uiLang: UILanguage) => {
   return uiLang === 'ar' ? 'IMPORTANT: Respond ONLY in Arabic.' : 'Respond in English.';
+};
+
+export const getPerformanceOptimization = async (
+  input: string | ProjectFile[],
+  language: SupportedLanguage,
+  uiLang: UILanguage = 'en'
+): Promise<PerformanceOptimizationResult> => {
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      performanceScore: { type: Type.NUMBER },
+      bottlenecks: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            area: { type: Type.STRING, enum: ["Memory", "CPU", "Network", "Database", "Bundle Size"] },
+            impact: { type: Type.STRING, enum: ["High", "Medium", "Low"] },
+            complexity: { type: Type.STRING },
+            bottleneck: { type: Type.STRING },
+            optimization: { type: Type.STRING },
+            optimizedCode: { type: Type.STRING }
+          },
+          required: ["area", "impact", "complexity", "bottleneck", "optimization", "optimizedCode"]
+        }
+      },
+      resourceAnalysis: { type: Type.STRING },
+      scalabilityVerdict: { type: Type.STRING }
+    },
+    required: ["performanceScore", "bottlenecks", "resourceAnalysis", "scalabilityVerdict"]
+  };
+
+  const systemInstruction = `
+    You are a Senior Performance Engineer at a FAANG company. 
+    Analyze the provided codebase for performance bottlenecks.
+    Focus on:
+    1. Algorithmic Complexity (Big O notation).
+    2. Memory consumption and leaks.
+    3. Execution speed and CPU cycles.
+    4. Database query efficiency or Network overhead where applicable.
+    Provide optimized code snippets for each major bottleneck.
+    Return the result in JSON format.
+    ${getLanguageInstruction(uiLang)}
+  `;
+
+  let prompt = typeof input === 'string' ? `Code for Performance Optimization:\n${input}` : `Project for Performance Optimization:\n${input.map(f => `${f.path}:\n${f.content}`).join('\n\n')}`;
+
+  const result = await ai.models.generateContent({
+    model: "gemini-3-pro-preview",
+    contents: { parts: [{ text: prompt }] },
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: responseSchema as any,
+      temperature: 0.1,
+      thinkingConfig: { thinkingBudget: 20000 }
+    }
+  });
+
+  return JSON.parse(result.text || "{}");
+};
+
+export const getSecurityAudit = async (
+  input: string | ProjectFile[],
+  language: SupportedLanguage,
+  uiLang: UILanguage = 'en'
+): Promise<SecurityAuditResult> => {
+  const responseSchema = {
+    type: Type.OBJECT,
+    properties: {
+      securityScore: { type: Type.NUMBER },
+      vulnerabilities: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          properties: {
+            type: { type: Type.STRING },
+            severity: { type: Type.STRING, enum: ["Critical", "High", "Medium", "Low"] },
+            cwe: { type: Type.STRING },
+            description: { type: Type.STRING },
+            attackVector: { type: Type.STRING },
+            mitigation: { type: Type.STRING }
+          },
+          required: ["type", "severity", "description", "mitigation"]
+        }
+      },
+      dataSensitivityAnalysis: { type: Type.STRING },
+      complianceSummary: { type: Type.STRING }
+    },
+    required: ["securityScore", "vulnerabilities", "dataSensitivityAnalysis", "complianceSummary"]
+  };
+
+  const systemInstruction = `
+    You are a Senior Cyber Security Researcher and Penetration Tester. 
+    Analyze the provided codebase for vulnerabilities including OWASP Top 10 (SQLi, XSS, CSRF, etc.).
+    Identify hardcoded secrets, weak encryption, and improper access controls.
+    Perform a data sensitivity analysis.
+    Return the result in JSON format.
+    ${getLanguageInstruction(uiLang)}
+  `;
+
+  let prompt = typeof input === 'string' ? `Code for Security Audit:\n${input}` : `Project for Security Audit:\n${input.map(f => `${f.path}:\n${f.content}`).join('\n\n')}`;
+
+  const result = await ai.models.generateContent({
+    model: "gemini-3-pro-preview",
+    contents: { parts: [{ text: prompt }] },
+    config: {
+      systemInstruction,
+      responseMimeType: "application/json",
+      responseSchema: responseSchema as any,
+      temperature: 0.1,
+      thinkingConfig: { thinkingBudget: 20000 }
+    }
+  });
+
+  return JSON.parse(result.text || "{}");
 };
 
 export const getCodeReview = async (
