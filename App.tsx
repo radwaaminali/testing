@@ -1,9 +1,16 @@
 
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { LANGUAGES, CodeReviewResult, SupportedLanguage, ReviewCategory, ProjectFile, ProjectExplanation, ProjectDevelopmentResult, UILanguage, TRANSLATIONS } from './types.ts';
-import { getCodeReview, applyFixes, explainProject, suggestDevelopment } from './services/geminiService.ts';
+import { getCodeReview, applyFixes, explainProject, suggestDevelopment, getChatConsultation } from './services/geminiService.ts';
 import { ReviewScoreCard } from './components/ReviewScoreCard.tsx';
 import { FindingItem } from './components/FindingItem.tsx';
+
+interface ChatMessage {
+  role: 'user' | 'model';
+  text: string;
+}
+
+const STORAGE_KEY = 'faang_reviewer_chat_history';
 
 const App: React.FC = () => {
   const [uiLanguage, setUiLanguage] = useState<UILanguage>('en');
@@ -20,8 +27,22 @@ const App: React.FC = () => {
   const [result, setResult] = useState<CodeReviewResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'original' | 'fixed'>('original');
-  const [rightTab, setRightTab] = useState<'review' | 'insight' | 'growth'>('review');
+  const [rightTab, setRightTab] = useState<'review' | 'insight' | 'growth' | 'consult'>('review');
   
+  // Chat State with localStorage initialization
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to load chat history", e);
+      return [];
+    }
+  });
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
   const folderInputRef = useRef<HTMLInputElement>(null);
   const t = TRANSLATIONS[uiLanguage];
 
@@ -29,6 +50,12 @@ const App: React.FC = () => {
     document.documentElement.dir = uiLanguage === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = uiLanguage;
   }, [uiLanguage]);
+
+  // Persistent storage sync
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(chatMessages));
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -73,6 +100,36 @@ const App: React.FC = () => {
       setError(err.message || 'Analysis failed.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleChatSend = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
+
+    const userMsg = chatInput;
+    setChatInput('');
+    setChatMessages(prev => [...prev, { role: 'user', text: userMsg }]);
+    setChatLoading(true);
+
+    const input = uploadedFiles.length > 0 ? uploadedFiles : code;
+    // Provide some context even if no files/code yet, but preferably with project context
+    const context = (uploadedFiles.length === 0 && !code.trim()) 
+      ? "No project code uploaded yet." 
+      : (typeof input === 'string' ? input : input.map(f => `File ${f.path}:\n${f.content}`).join('\n\n'));
+    
+    const history = chatMessages.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }]
+    }));
+
+    try {
+      const response = await getChatConsultation(history, userMsg, context, uiLanguage);
+      setChatMessages(prev => [...prev, { role: 'model', text: response || '' }]);
+    } catch (err: any) {
+      setError('Chat failed: ' + err.message);
+    } finally {
+      setChatLoading(false);
     }
   };
 
@@ -122,6 +179,11 @@ const App: React.FC = () => {
     } finally {
       setFixing(false);
     }
+  };
+
+  const clearChatHistory = () => {
+    setChatMessages([]);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
   const clearAll = () => {
@@ -238,132 +300,186 @@ const App: React.FC = () => {
               <p className="text-xs font-black text-slate-500 uppercase tracking-widest">{t.analyzing}</p>
             </div>
           )}
-          {!result && !explanation && !development && !loading && !explaining && !suggesting && (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 p-12 bg-white rounded-xl border border-dashed border-slate-200">
-              <i className="fa-solid fa-diagram-project text-4xl mb-4 text-indigo-100"></i>
-              <p className="text-sm font-bold">{t.ready}</p>
-              <p className="text-xs text-slate-400 mt-2 text-center max-w-xs">{t.readySub}</p>
+          
+          <div className="space-y-6 animate-in fade-in zoom-in-95">
+            <div className="flex border-b border-slate-200 gap-6">
+              <button onClick={() => setRightTab('review')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'review' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.review}</button>
+              <button onClick={() => setRightTab('insight')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'insight' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.architecture}</button>
+              <button onClick={() => setRightTab('growth')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'growth' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.roadmap}</button>
+              <button onClick={() => setRightTab('consult')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'consult' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.consult}</button>
             </div>
-          )}
-          {(result || explanation || development) && !loading && !explaining && !suggesting && (
-            <div className="space-y-6 animate-in fade-in zoom-in-95">
-              <div className="flex border-b border-slate-200 gap-6">
-                <button onClick={() => setRightTab('review')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'review' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.review}</button>
-                <button onClick={() => setRightTab('insight')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'insight' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.architecture}</button>
-                <button onClick={() => setRightTab('growth')} className={`pb-2 text-xs font-black uppercase tracking-wider transition-all border-b-2 ${rightTab === 'growth' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}>{t.roadmap}</button>
-              </div>
 
-              {rightTab === 'review' && result && (
-                <div className="space-y-6">
-                  <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
-                    <div className={`flex justify-between items-start mb-4 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
-                      <div>
-                        <h2 className="text-4xl font-black">{result.overallScore}<span className="text-slate-600 text-xl">/100</span></h2>
-                        <p className="text-xs text-indigo-400 font-bold uppercase tracking-widest">{t.healthScore}</p>
-                      </div>
-                      <button onClick={handleApplyFixes} disabled={fixing} className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 shadow-lg transition-all">
-                        {fixing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-magic-wand-sparkles"></i>}
-                        {t.applyFixes}
-                      </button>
-                    </div>
-                    <p className="text-slate-300 text-xs italic leading-relaxed">"{result.executiveSummary}"</p>
+            {rightTab === 'consult' && (
+              <div className="flex flex-col h-[600px] bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4">
+                <div className="bg-slate-900 p-4 text-white flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-black uppercase tracking-widest">{t.consult}</span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-                    <ReviewScoreCard label="Security" score={result.categories.security.score} icon="fa-solid fa-lock" color="bg-rose-500" />
-                    <ReviewScoreCard label="Bugs" score={result.categories.bugs.score} icon="fa-solid fa-bug" color="bg-orange-500" />
-                    <ReviewScoreCard label="Perf" score={result.categories.performance.score} icon="fa-solid fa-bolt" color="bg-amber-500" />
-                    <ReviewScoreCard label="Quality" score={result.categories.quality.score} icon="fa-solid fa-gem" color="bg-emerald-500" />
-                    <ReviewScoreCard label="Docs" score={result.categories.maintainability.score} icon="fa-solid fa-wrench" color="bg-sky-500" />
-                  </div>
-                  <div className="space-y-10">
-                    {(Object.entries(result.categories) as [string, ReviewCategory][]).map(([key, cat]) => (
-                      <div key={key} className="space-y-4">
-                        <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                          <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
-                            <span className={`w-1.5 h-1.5 rounded-full ${key === 'security' ? 'bg-rose-500' : 'bg-slate-400'}`}></span>
-                            {key} Findings
-                          </h3>
-                          <span className="text-[10px] text-slate-400 font-bold">{cat.findings.length} Issues</span>
-                        </div>
-                        {cat.findings.map((f, i) => <FindingItem key={i} finding={f} />)}
-                      </div>
-                    ))}
-                  </div>
+                  <button 
+                    onClick={clearChatHistory} 
+                    className="text-[10px] font-bold text-slate-400 hover:text-rose-400 flex items-center gap-2 transition-colors"
+                  >
+                    <i className="fa-solid fa-trash-can"></i>
+                    {t.clearChat}
+                  </button>
                 </div>
-              )}
 
-              {rightTab === 'insight' && explanation && (
-                <div className="space-y-6 animate-in slide-in-from-bottom-4">
-                  <div className="bg-indigo-600 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
-                    <i className={`fa-solid fa-compass absolute text-white/10 text-9xl ${uiLanguage === 'ar' ? '-left-4 -bottom-4' : '-right-4 -bottom-4'}`}></i>
-                    <h2 className="text-3xl font-black mb-2">{explanation.title}</h2>
-                    <p className="text-indigo-100 text-sm leading-relaxed max-w-lg">{explanation.briefSummary}</p>
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-layer-group text-indigo-500"></i> {t.architecture}</h4>
-                      <p className="text-sm text-slate-700 font-bold">{explanation.architecturePattern}</p>
+                <div className="flex-1 p-4 overflow-y-auto space-y-4 bg-slate-50/50 custom-scrollbar">
+                  <div className="flex justify-start">
+                    <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm max-w-[85%]">
+                      <p className="text-xs text-slate-700 leading-relaxed font-bold">{t.consultWelcome}</p>
                     </div>
-                    <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                      <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-microchip text-indigo-500"></i> {t.techStack}</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {explanation.techStack.map((tech, i) => (<span key={i} className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">{tech}</span>))}
+                  </div>
+
+                  {chatMessages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`p-3 rounded-2xl shadow-sm max-w-[85%] text-xs leading-relaxed ${
+                        msg.role === 'user' 
+                          ? 'bg-indigo-600 text-white rounded-tr-none' 
+                          : 'bg-white border border-slate-200 text-slate-700 rounded-tl-none'
+                      }`}>
+                        {msg.text}
                       </div>
                     </div>
+                  ))}
+                  
+                  {chatLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-white border border-slate-200 p-3 rounded-2xl rounded-tl-none shadow-sm">
+                        <div className="flex gap-1">
+                          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"></div>
+                          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+
+                <form onSubmit={handleChatSend} className="p-4 bg-white border-t border-slate-100 flex gap-2">
+                  <input 
+                    type="text" 
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={t.chatPlaceholder}
+                    className="flex-1 bg-slate-100 border-none rounded-lg px-4 py-2 text-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                    disabled={chatLoading}
+                  />
+                  <button 
+                    type="submit" 
+                    disabled={!chatInput.trim() || chatLoading}
+                    className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white w-8 h-8 rounded-lg flex items-center justify-center transition-all"
+                  >
+                    <i className="fa-solid fa-paper-plane text-xs"></i>
+                  </button>
+                </form>
+              </div>
+            )}
+
+            {rightTab === 'review' && result && (
+              <div className="space-y-6">
+                <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-xl">
+                  <div className={`flex justify-between items-start mb-4 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
+                    <div>
+                      <h2 className="text-4xl font-black">{result.overallScore}<span className="text-slate-600 text-xl">/100</span></h2>
+                      <p className="text-xs text-indigo-400 font-bold uppercase tracking-widest">{t.healthScore}</p>
+                    </div>
+                    <button onClick={handleApplyFixes} disabled={fixing} className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 shadow-lg transition-all">
+                      {fixing ? <i className="fa-solid fa-spinner fa-spin"></i> : <i className="fa-solid fa-magic-wand-sparkles"></i>}
+                      {t.applyFixes}
+                    </button>
+                  </div>
+                  <p className="text-slate-300 text-xs italic leading-relaxed">"{result.executiveSummary}"</p>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <ReviewScoreCard label="Security" score={result.categories.security.score} icon="fa-solid fa-lock" color="bg-rose-500" />
+                  <ReviewScoreCard label="Bugs" score={result.categories.bugs.score} icon="fa-solid fa-bug" color="bg-orange-500" />
+                  <ReviewScoreCard label="Perf" score={result.categories.performance.score} icon="fa-solid fa-bolt" color="bg-amber-500" />
+                  <ReviewScoreCard label="Quality" score={result.categories.quality.score} icon="fa-solid fa-gem" color="bg-emerald-500" />
+                  <ReviewScoreCard label="Docs" score={result.categories.maintainability.score} icon="fa-solid fa-wrench" color="bg-sky-500" />
+                </div>
+                <div className="space-y-10">
+                  {(Object.entries(result.categories) as [string, ReviewCategory][]).map(([key, cat]) => (
+                    <div key={key} className="space-y-4">
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-800 flex items-center gap-2">
+                          <span className={`w-1.5 h-1.5 rounded-full ${key === 'security' ? 'bg-rose-500' : 'bg-slate-400'}`}></span>
+                          {key} Findings
+                        </h3>
+                        <span className="text-[10px] text-slate-400 font-bold">{cat.findings.length} Issues</span>
+                      </div>
+                      {cat.findings.map((f, i) => <FindingItem key={i} finding={f} />)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {rightTab === 'insight' && explanation && (
+              <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                <div className="bg-indigo-600 text-white p-8 rounded-2xl shadow-xl relative overflow-hidden">
+                  <i className={`fa-solid fa-compass absolute text-white/10 text-9xl ${uiLanguage === 'ar' ? '-left-4 -bottom-4' : '-right-4 -bottom-4'}`}></i>
+                  <h2 className="text-3xl font-black mb-2">{explanation.title}</h2>
+                  <p className="text-indigo-100 text-sm leading-relaxed max-w-lg">{explanation.briefSummary}</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-layer-group text-indigo-500"></i> {t.architecture}</h4>
+                    <p className="text-sm text-slate-700 font-bold">{explanation.architecturePattern}</p>
                   </div>
                   <div className="bg-white p-6 rounded-xl border border-slate-200 space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-code-branch text-indigo-500"></i> {t.logicFlow}</h4>
-                    <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg border border-slate-100 italic">{explanation.coreLogicFlow}</p>
+                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2"><i className="fa-solid fa-microchip text-indigo-500"></i> {t.techStack}</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {explanation.techStack.map((tech, i) => (<span key={i} className="text-[10px] font-black bg-slate-100 text-slate-600 px-2 py-1 rounded uppercase">{tech}</span>))}
+                    </div>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
 
-              {rightTab === 'growth' && development && (
-                <div className="space-y-6 animate-in slide-in-from-bottom-4 pb-12">
-                  <div className={`bg-slate-900 text-white p-8 rounded-2xl shadow-xl border-indigo-500 ${uiLanguage === 'ar' ? 'border-r-4' : 'border-l-4'}`}>
-                    <h2 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">{t.vision}</h2>
-                    <p className="text-lg font-bold leading-tight">{development.visionStatement}</p>
-                  </div>
-                  <div className="space-y-4">
-                    {development.suggestions.map((suggestion, i) => (
-                      <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-                        <div className={`bg-slate-50 border-b border-slate-100 px-4 py-2 flex items-center justify-between ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
-                          <div className={`flex items-center gap-3 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
-                            <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
-                              suggestion.category === 'Feature' ? 'bg-indigo-100 text-indigo-700' :
-                              suggestion.category === 'Scalability' ? 'bg-amber-100 text-amber-700' :
-                              suggestion.category === 'UX' ? 'bg-emerald-100 text-emerald-700' :
-                              suggestion.category === 'Architecture' ? 'bg-sky-100 text-sky-700' : 'bg-slate-200 text-slate-700'
-                            }`}>{suggestion.category}</span>
-                            <h3 className="text-sm font-black text-slate-800">{suggestion.title}</h3>
-                          </div>
-                          <div className={`flex gap-2 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
-                             <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${suggestion.impact === 'High' ? 'border-rose-200 text-rose-600 bg-rose-50' : 'border-slate-200 text-slate-500'}`}>{t.impact}: {suggestion.impact}</span>
-                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 bg-white">{t.dev}: {suggestion.complexity}</span>
-                          </div>
+            {rightTab === 'growth' && development && (
+              <div className="space-y-6 animate-in slide-in-from-bottom-4 pb-12">
+                <div className={`bg-slate-900 text-white p-8 rounded-2xl shadow-xl border-indigo-500 ${uiLanguage === 'ar' ? 'border-r-4' : 'border-l-4'}`}>
+                  <h2 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2">{t.vision}</h2>
+                  <p className="text-lg font-bold leading-tight">{development.visionStatement}</p>
+                </div>
+                <div className="space-y-4">
+                  {development.suggestions.map((suggestion, i) => (
+                    <div key={i} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
+                      <div className={`bg-slate-50 border-b border-slate-100 px-4 py-2 flex items-center justify-between ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
+                        <div className={`flex items-center gap-3 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
+                          <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-tighter ${
+                            suggestion.category === 'Feature' ? 'bg-indigo-100 text-indigo-700' :
+                            suggestion.category === 'Scalability' ? 'bg-amber-100 text-amber-700' :
+                            suggestion.category === 'UX' ? 'bg-emerald-100 text-emerald-700' :
+                            suggestion.category === 'Architecture' ? 'bg-sky-100 text-sky-700' : 'bg-slate-200 text-slate-700'
+                          }`}>{suggestion.category}</span>
+                          <h3 className="text-sm font-black text-slate-800">{suggestion.title}</h3>
                         </div>
-                        <div className="p-4 space-y-4">
-                          <p className="text-xs text-slate-600 leading-relaxed font-medium">{suggestion.description}</p>
-                          <div className="bg-indigo-50/50 p-3 rounded-lg border border-indigo-100">
-                            <p className="text-[10px] text-indigo-700 font-black uppercase mb-1">{t.reasoning}</p>
-                            <p className="text-xs text-slate-700 italic">{suggestion.reasoning}</p>
-                          </div>
-                          {suggestion.suggestedCode && (
-                            <div className="mt-4 space-y-2">
-                              <p className="text-[10px] text-slate-500 font-black uppercase">{t.implementation}</p>
-                              <div className="bg-slate-900 rounded-lg p-4 font-mono text-[11px] text-emerald-400 overflow-x-auto shadow-inner border border-slate-800" dir="ltr">
-                                <pre className="whitespace-pre-wrap">{suggestion.suggestedCode}</pre>
-                              </div>
-                            </div>
-                          )}
+                        <div className={`flex gap-2 ${uiLanguage === 'ar' ? 'flex-row-reverse' : ''}`}>
+                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${suggestion.impact === 'High' ? 'border-rose-200 text-rose-600 bg-rose-50' : 'border-slate-200 text-slate-500'}`}>{t.impact}: {suggestion.impact}</span>
+                           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 bg-white">{t.dev}: {suggestion.complexity}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div className="p-4 space-y-4">
+                        <p className="text-xs text-slate-600 leading-relaxed font-medium">{suggestion.description}</p>
+                        {suggestion.suggestedCode && (
+                          <div className="mt-4 space-y-2">
+                            <p className="text-[10px] text-slate-500 font-black uppercase">{t.implementation}</p>
+                            <div className="bg-slate-900 rounded-lg p-4 font-mono text-[11px] text-emerald-400 overflow-x-auto shadow-inner border border-slate-800" dir="ltr">
+                              <pre className="whitespace-pre-wrap">{suggestion.suggestedCode}</pre>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </main>
       <footer className="bg-white border-t border-slate-200 py-3 text-center">

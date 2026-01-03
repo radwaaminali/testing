@@ -88,13 +88,14 @@ export const TRANSLATIONS = {
     explain: 'Explain',
     growth: 'Growth',
     review: 'Review',
+    consult: 'AI Consultant',
     original: 'Original',
     fixed: 'Fixed Version ✨',
     reset: 'Reset',
     placeholder: 'Paste code here or upload files...',
     analyzing: 'Analyzing Structure...',
     ready: 'Ready for Analysis',
-    readySub: 'Run a Review to find bugs, Explain to understand, or Growth to see the future.',
+    readySub: 'Run a Review to find bugs, Explain to understand, or Chat with the Consultant.',
     architecture: 'Architecture',
     roadmap: 'Roadmap 🚀',
     healthScore: 'Health Score',
@@ -107,7 +108,12 @@ export const TRANSLATIONS = {
     footer: 'FAANG AI Engine • Product Growth Strategist Active',
     logicFlow: 'Logic Flow',
     keyModules: 'Key Modules',
-    techStack: 'Tech Stack'
+    techStack: 'Tech Stack',
+    chatPlaceholder: 'Ask about scaling, bugs, or logic...',
+    send: 'Send',
+    aiTyping: 'Consultant is thinking...',
+    consultWelcome: 'Hello! I am your Senior Staff Engineer. Ask me anything about this project.',
+    clearChat: 'Clear History'
   },
   ar: {
     title: 'مُراجع الكود المحترف',
@@ -116,13 +122,14 @@ export const TRANSLATIONS = {
     explain: 'شرح الكود',
     growth: 'اقتراح تطوير',
     review: 'مراجعة الكود',
+    consult: 'مستشار الذكاء الاصطناعي',
     original: 'الكود الأصلي',
     fixed: 'النسخة المصححة ✨',
     reset: 'إعادة تعيين',
     placeholder: 'أدخل الكود هنا أو قم برفع ملفات المشروع...',
     analyzing: 'جاري تحليل الهيكل...',
     ready: 'جاهز للتحليل',
-    readySub: 'قم بإجراء مراجعة للبحث عن الأخطاء، أو اطلب شرحاً لفهم المعمارية، أو اختر التطوير لرؤية المستقبل.',
+    readySub: 'قم بإجراء مراجعة للبحث عن الأخطاء، أو اطلب شرحاً لفهم المعمارية، أو دردش مع المستشار الذكي.',
     architecture: 'المعمارية',
     roadmap: 'خارطة الطريق 🚀',
     healthScore: 'درجة جودة الكود',
@@ -135,6 +142,11 @@ export const TRANSLATIONS = {
     footer: 'محرك FAANG الذكي • خبير استراتيجيات النمو نشط حالياً',
     logicFlow: 'مسار المنطق',
     keyModules: 'الوحدات الأساسية',
-    techStack: 'التقنيات المستخدمة'
+    techStack: 'التقنيات المستخدمة',
+    chatPlaceholder: 'اسأل عن قابلية التوسع، الأخطاء، أو منطق الكود...',
+    send: 'إرسال',
+    aiTyping: 'المستشار يفكر...',
+    consultWelcome: 'أهلاً بك! أنا مهندسك الخبير. اسألني أي شيء حول هذا المشروع.',
+    clearChat: 'مسح السجل'
   }
 };

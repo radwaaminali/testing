@@ -215,3 +215,30 @@ export const applyFixes = async (
   const parsed = JSON.parse(result.text || "{}");
   return typeof input === 'string' ? parsed.fixedCode : parsed.fixedFiles;
 };
+
+// New Chat Functionality
+export const getChatConsultation = async (
+  history: { role: 'user' | 'model'; parts: { text: string }[] }[],
+  newMessage: string,
+  projectContext: string,
+  uiLang: UILanguage
+) => {
+  const systemInstruction = `You are a Senior Staff Engineer Consultant. 
+  You are discussing this project:
+  ${projectContext}
+  
+  Provide brief, technical, and high-value advice. Be direct. 
+  ${getLanguageInstruction(uiLang)}`;
+
+  const chat = ai.chats.create({
+    model: 'gemini-3-flash-preview',
+    config: {
+      systemInstruction,
+      temperature: 0.7
+    },
+    history: history
+  });
+
+  const response = await chat.sendMessage({ message: newMessage });
+  return response.text;
+};
