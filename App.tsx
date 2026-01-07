@@ -27,7 +27,7 @@ const App: React.FC = () => {
   const [code, setCode] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<ProjectFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const dragCounter = useRef(0); // For robust drag tracking
+  const dragCounter = useRef(0);
   
   const [fixedContent, setFixedContent] = useState<string | ProjectFile[] | null>(null);
   const [explanation, setExplanation] = useState<ProjectExplanation | null>(null);
@@ -148,7 +148,6 @@ const App: React.FC = () => {
     setViewMode('original');
   };
 
-  // Improved recursive file traversal for folders on drop
   const traverseFileTree = async (item: any, path: string = ""): Promise<ProjectFile[]> => {
     const files: ProjectFile[] = [];
     if (item.isFile) {
@@ -712,6 +711,63 @@ const App: React.FC = () => {
                         </div>
                      </div>
                    ))}
+                </div>
+              </div>
+            )}
+
+            {rightTab === 'insight' && explanation && (
+              <div className="space-y-6 animate-in slide-in-from-bottom-4">
+                <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                      <i className="fa-solid fa-diagram-project text-xl"></i>
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black text-slate-800 dark:text-white uppercase tracking-tight">{explanation.title}</h2>
+                      <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest">{explanation.architecturePattern}</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed font-medium bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-100 dark:border-slate-800">
+                    {explanation.briefSummary}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{t.techStack}</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {explanation.techStack.map((tech, i) => (
+                      <span key={i} className="px-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-full text-[10px] font-black text-slate-600 dark:text-slate-400 shadow-sm uppercase">
+                        {tech}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 dark:bg-black p-6 rounded-2xl border border-slate-800 text-white relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:scale-110 transition-transform">
+                     <i className="fa-solid fa-code-branch text-6xl"></i>
+                  </div>
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-4">{uiLanguage === 'ar' ? 'مسار المنطق البرمجي' : 'Core Logic Flow'}</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed font-mono whitespace-pre-wrap relative z-10">
+                    {explanation.coreLogicFlow}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-500">{uiLanguage === 'ar' ? 'الوحدات الأساسية' : 'Key Modules'}</h3>
+                  <div className="grid grid-cols-1 gap-3">
+                    {explanation.keyModules.map((module, i) => (
+                      <div key={i} className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-start gap-4 hover:border-indigo-500 transition-all">
+                        <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0 border border-slate-100 dark:border-slate-700">
+                          <i className="fa-solid fa-cube text-indigo-500 text-sm"></i>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-wide mb-1">{module.name}</h4>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-relaxed">{module.responsibility}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
